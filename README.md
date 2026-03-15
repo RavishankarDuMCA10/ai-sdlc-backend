@@ -9,7 +9,7 @@ A Python/PostgreSQL backend service for Car Management. Database schema is manag
 - [Prerequisites](#prerequisites)
 - [Project Structure](#project-structure)
 - [Database Configuration](#database-configuration)
-- [Setup](#setup)
+- [Modifying the Database Connection](#modifying-the-database-connection)
 - [Starting the Application](#starting-the-application)
 - [Running Migrations](#running-migrations)
 - [Rolling Back Migrations](#rolling-back-migrations)
@@ -103,23 +103,71 @@ createdb -U postgres ai_sdlc
 
 ---
 
-## Setup
+## Modifying the Database Connection
+
+The database connection is configured in **`app/config.py`**:
+
+```python
+import os
+
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@localhost:5432/ai_sdlc",
+)
+```
+
+The connection string has the following components:
+
+```
+postgresql://<username>:<password>@<host>:<port>/<database>
+```
+
+| Component | Default value | Description |
+|-----------|--------------|-------------|
+| `username` | `postgres` | PostgreSQL user |
+| `password` | `postgres` | Password for the user |
+| `host` | `localhost` | Database server hostname or IP |
+| `port` | `5432` | PostgreSQL port |
+| `database` | `ai_sdlc` | Target database name |
+
+### Option A — Change via environment variable (recommended)
+
+Set `DATABASE_URL` before running any command. This overrides the default in `app/config.py` without modifying any source file:
 
 ```bash
-# 1. Clone the repository (if you haven't already)
-git clone https://github.com/RavishankarDuMCA10/ai-sdlc-backend.git
-cd ai-sdlc-backend
-
-# 2. Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Set the database connection string
-export DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/ai_sdlc"
+export DATABASE_URL="postgresql://myuser:mysecretpassword@db.example.com:5432/mydb"
 ```
+
+To make it permanent for your shell session, add the line to `~/.bashrc` or `~/.zshrc`.
+
+### Option B — Use a `.env` file
+
+Create `.env` in the project root (already listed in `.gitignore`):
+
+```dotenv
+DATABASE_URL=postgresql://myuser:mysecretpassword@db.example.com:5432/mydb
+```
+
+Load it before running migrations:
+
+```bash
+source .env            # Linux / macOS
+# or
+set -a && source .env && set +a
+```
+
+### Option C — Edit the default in `app/config.py`
+
+If you want to hard-code a different default (useful for local dev only — never commit credentials), edit the fallback value in `app/config.py`:
+
+```python
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://myuser:mysecretpassword@localhost:5432/mydb",  # ← change here
+)
+```
+
+> **Security note:** Options A and B are preferred. Never commit passwords or credentials to source control.
 
 ---
 
@@ -127,52 +175,62 @@ export DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/ai_sdlc"
 
 > **Note:** This project currently consists of the database layer only (schema migrations). There is no HTTP server to start. The steps below get the database ready so the application can be developed on top of it.
 
-### 1. Complete the [Setup](#setup) steps first
+Follow these steps in order to get the application running from scratch:
 
-Ensure your virtual environment is active and `DATABASE_URL` is set.
+**Step 1 — Clone the repository**
 
-### 2. Run the migration script
+```bash
+git clone https://github.com/RavishankarDuMCA10/ai-sdlc-backend.git
+cd ai-sdlc-backend
+```
 
-`scripts/migrate.py` is the recommended Python entry point for managing the database schema. It wraps Alembic so you do not need the `alembic` CLI on your PATH.
+**Step 2 — Create and activate a virtual environment**
 
-**Apply all pending migrations (creates all tables):**
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+```
+
+**Step 3 — Install dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+**Step 4 — Configure the database connection**
+
+Set the `DATABASE_URL` environment variable to point to your PostgreSQL instance (see [Modifying the Database Connection](#modifying-the-database-connection) for all options):
+
+```bash
+export DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/ai_sdlc"
+```
+
+**Step 5 — Create the PostgreSQL database** (first time only)
+
+```bash
+createdb -U postgres ai_sdlc
+# or via psql:
+# CREATE DATABASE ai_sdlc;
+```
+
+**Step 6 — Apply all database migrations**
 
 ```bash
 python scripts/migrate.py
 ```
 
-**Apply migrations up to a specific revision:**
+`scripts/migrate.py` is the Python entry point for managing the database schema. It wraps Alembic so you do not need the `alembic` CLI on your PATH. After this command succeeds, the `cars` and `car_service_schedules` tables will exist in your database and the application is ready for further development.
 
-```bash
-python scripts/migrate.py --revision 0001   # only the cars table
-python scripts/migrate.py --revision 0002   # up to car_service_schedules
-```
+**Additional `scripts/migrate.py` commands:**
 
-**Check the current migration state:**
-
-```bash
-python scripts/migrate.py --current
-```
-
-**View full migration history:**
-
-```bash
-python scripts/migrate.py --history
-```
-
-**Revert the most recent migration:**
-
-```bash
-python scripts/migrate.py --downgrade -1
-```
-
-**Revert all migrations (drops all tables):**
-
-```bash
-python scripts/migrate.py --downgrade base
-```
-
-After running `python scripts/migrate.py` successfully, the database will contain the `cars` and `car_service_schedules` tables and the application is ready for further development.
+| Command | Description |
+|---------|-------------|
+| `python scripts/migrate.py` | Apply all pending migrations (upgrade to `head`) |
+| `python scripts/migrate.py --revision 0001` | Apply migrations up to a specific revision |
+| `python scripts/migrate.py --downgrade -1` | Revert the most recent migration |
+| `python scripts/migrate.py --downgrade base` | Revert all migrations (drops all tables) |
+| `python scripts/migrate.py --current` | Show the current migration revision |
+| `python scripts/migrate.py --history` | Show the full migration history |
 
 ---
 
