@@ -10,6 +10,7 @@ A Python/PostgreSQL backend service for Car Management. Database schema is manag
 - [Project Structure](#project-structure)
 - [Database Configuration](#database-configuration)
 - [Setup](#setup)
+- [Starting the Application](#starting-the-application)
 - [Running Migrations](#running-migrations)
 - [Rolling Back Migrations](#rolling-back-migrations)
 - [Running Tests](#running-tests)
@@ -42,8 +43,11 @@ ai-sdlc-backend/
 │   └── versions/
 │       ├── 0001_create_cars_table.py
 │       └── 0002_create_car_service_schedules_table.py
+├── scripts/
+│   └── migrate.py                       # Python CLI to trigger migrations
 └── tests/
-    └── test_migrations.py               # Unit tests for migrations
+    ├── test_migrations.py               # Unit tests for migration SQL
+    └── test_migrate_script.py           # Unit tests for migrate.py CLI
 ```
 
 ---
@@ -116,6 +120,59 @@ pip install -r requirements.txt
 # 4. Set the database connection string
 export DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/ai_sdlc"
 ```
+
+---
+
+## Starting the Application
+
+> **Note:** This project currently consists of the database layer only (schema migrations). There is no HTTP server to start. The steps below get the database ready so the application can be developed on top of it.
+
+### 1. Complete the [Setup](#setup) steps first
+
+Ensure your virtual environment is active and `DATABASE_URL` is set.
+
+### 2. Run the migration script
+
+`scripts/migrate.py` is the recommended Python entry point for managing the database schema. It wraps Alembic so you do not need the `alembic` CLI on your PATH.
+
+**Apply all pending migrations (creates all tables):**
+
+```bash
+python scripts/migrate.py
+```
+
+**Apply migrations up to a specific revision:**
+
+```bash
+python scripts/migrate.py --revision 0001   # only the cars table
+python scripts/migrate.py --revision 0002   # up to car_service_schedules
+```
+
+**Check the current migration state:**
+
+```bash
+python scripts/migrate.py --current
+```
+
+**View full migration history:**
+
+```bash
+python scripts/migrate.py --history
+```
+
+**Revert the most recent migration:**
+
+```bash
+python scripts/migrate.py --downgrade -1
+```
+
+**Revert all migrations (drops all tables):**
+
+```bash
+python scripts/migrate.py --downgrade base
+```
+
+After running `python scripts/migrate.py` successfully, the database will contain the `cars` and `car_service_schedules` tables and the application is ready for further development.
 
 ---
 
