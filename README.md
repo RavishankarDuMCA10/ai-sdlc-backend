@@ -20,11 +20,11 @@ A Python/PostgreSQL backend service for Car Management. Database schema is manag
 
 ## Prerequisites
 
-| Tool | Minimum Version |
-|------|----------------|
-| Python | 3.9+ |
-| PostgreSQL | 13+ |
-| pip | 23+ |
+| Tool | Minimum Version | Install |
+|------|----------------|---------|
+| Python | 3.12+ | [python.org](https://www.python.org/downloads/) |
+| uv | 0.1+ | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| PostgreSQL | 13+ | [postgresql.org](https://www.postgresql.org/download/) |
 
 ---
 
@@ -32,8 +32,9 @@ A Python/PostgreSQL backend service for Car Management. Database schema is manag
 
 ```
 ai-sdlc-backend/
+├── pyproject.toml                       # Project metadata and dependencies (uv)
 ├── alembic.ini                          # Alembic configuration
-├── requirements.txt                     # Python dependencies
+├── requirements.txt                     # Legacy pip dependency list (reference)
 ├── app/
 │   ├── __init__.py
 │   └── config.py                        # Reads DATABASE_URL from environment
@@ -177,27 +178,50 @@ DATABASE_URL = os.environ.get(
 
 Follow these steps in order to get the application running from scratch:
 
-**Step 1 — Clone the repository**
+**Step 1 — Install uv** (if not already installed)
+
+```bash
+# Linux / macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Verify the installation:
+
+```bash
+uv --version
+```
+
+**Step 2 — Clone the repository**
 
 ```bash
 git clone https://github.com/RavishankarDuMCA10/ai-sdlc-backend.git
 cd ai-sdlc-backend
 ```
 
-**Step 2 — Create and activate a virtual environment**
+**Step 3 — Create a virtual environment with Python 3.12**
 
 ```bash
-python -m venv .venv
+uv venv --python 3.12
+```
+
+This creates a `.venv` directory in the project root. Activate it if you want to use tools directly (optional — `uv run` works without activation):
+
+```bash
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 ```
 
-**Step 3 — Install dependencies**
+**Step 4 — Install all dependencies**
 
 ```bash
-pip install -r requirements.txt
+uv sync --extra dev
 ```
 
-**Step 4 — Configure the database connection**
+This installs all runtime and development dependencies declared in `pyproject.toml`.
+
+**Step 5 — Configure the database connection**
 
 Set the `DATABASE_URL` environment variable to point to your PostgreSQL instance (see [Modifying the Database Connection](#modifying-the-database-connection) for all options):
 
@@ -205,7 +229,7 @@ Set the `DATABASE_URL` environment variable to point to your PostgreSQL instance
 export DATABASE_URL="postgresql://myuser:mypassword@localhost:5432/ai_sdlc"
 ```
 
-**Step 5 — Create the PostgreSQL database** (first time only)
+**Step 6 — Create the PostgreSQL database** (first time only)
 
 ```bash
 createdb -U postgres ai_sdlc
@@ -213,10 +237,10 @@ createdb -U postgres ai_sdlc
 # CREATE DATABASE ai_sdlc;
 ```
 
-**Step 6 — Apply all database migrations**
+**Step 7 — Apply all database migrations**
 
 ```bash
-python scripts/migrate.py
+uv run python scripts/migrate.py
 ```
 
 `scripts/migrate.py` is the Python entry point for managing the database schema. It wraps Alembic so you do not need the `alembic` CLI on your PATH. After this command succeeds, the `cars` and `car_service_schedules` tables will exist in your database and the application is ready for further development.
@@ -225,12 +249,12 @@ python scripts/migrate.py
 
 | Command | Description |
 |---------|-------------|
-| `python scripts/migrate.py` | Apply all pending migrations (upgrade to `head`) |
-| `python scripts/migrate.py --revision 0001` | Apply migrations up to a specific revision |
-| `python scripts/migrate.py --downgrade -1` | Revert the most recent migration |
-| `python scripts/migrate.py --downgrade base` | Revert all migrations (drops all tables) |
-| `python scripts/migrate.py --current` | Show the current migration revision |
-| `python scripts/migrate.py --history` | Show the full migration history |
+| `uv run python scripts/migrate.py` | Apply all pending migrations (upgrade to `head`) |
+| `uv run python scripts/migrate.py --revision 0001` | Apply migrations up to a specific revision |
+| `uv run python scripts/migrate.py --downgrade -1` | Revert the most recent migration |
+| `uv run python scripts/migrate.py --downgrade base` | Revert all migrations (drops all tables) |
+| `uv run python scripts/migrate.py --current` | Show the current migration revision |
+| `uv run python scripts/migrate.py --history` | Show the full migration history |
 
 ---
 
@@ -239,26 +263,26 @@ python scripts/migrate.py
 Apply all pending migrations to bring the database schema up to the latest version:
 
 ```bash
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 Apply migrations up to a specific revision:
 
 ```bash
-alembic upgrade 0001   # apply only the cars table migration
-alembic upgrade 0002   # apply up to car_service_schedules table
+uv run alembic upgrade 0001   # apply only the cars table migration
+uv run alembic upgrade 0002   # apply up to car_service_schedules table
 ```
 
 Check the current migration state:
 
 ```bash
-alembic current
+uv run alembic current
 ```
 
 View the full migration history:
 
 ```bash
-alembic history --verbose
+uv run alembic history --verbose
 ```
 
 ---
@@ -268,19 +292,19 @@ alembic history --verbose
 Roll back the most recent migration:
 
 ```bash
-alembic downgrade -1
+uv run alembic downgrade -1
 ```
 
 Roll back to a specific revision:
 
 ```bash
-alembic downgrade 0001   # revert car_service_schedules, keep cars
+uv run alembic downgrade 0001   # revert car_service_schedules, keep cars
 ```
 
 Roll back all migrations (empty database):
 
 ```bash
-alembic downgrade base
+uv run alembic downgrade base
 ```
 
 ---
@@ -291,13 +315,13 @@ Unit tests validate the SQL emitted by each migration without requiring a live d
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 
 # Run only migration tests
-pytest tests/test_migrations.py -v
+uv run pytest tests/test_migrations.py -v
 ```
 
 ---
